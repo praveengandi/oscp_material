@@ -1,8 +1,8 @@
-This is a collection of material i gathred during my preparation for the Offensive Security Certified Professional (OSCP) exam.
+This is a collection of material i gathred during my preparation for the Offensive Security Certified Professional (OSCP) exam.\n
 
 Most of the stuff is very unsorted, however i would like to share with the fellow hackers studied for the exam as i also did benefit from various other Cheatsets and different sources.
 
-oscp_notes.txt					- the notes i kept during lab and exam
+oscp_notes.txt					- the notes i kept during lab and exam\n
 ctf_machines_for_training.txt	- CTF machines i played to prepare for the exam
 exploits/						- a collection of exploits i used during lab/exam
 material/windows_privesc/		- docs explaining different methods for windows priviledge escalation
