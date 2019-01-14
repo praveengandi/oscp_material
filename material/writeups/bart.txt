@@ -1,0 +1,24 @@
+01:54 - Begin Recon, Windows IIS/OS Mapping and GoBuster
+05:20 - Explanation of Virtual Host Routing
+09:50 - Developers name exposed in HTML Source, also discover /monitor
+11:10 - Enumerating Username in PHP Server Monitor: Challenge Watch Sense to und
+erstand CSRF and write an automated bruteforcer
+16:33 - Discover of Internal-01.bart.htb
+19:17 - Harveys Password with Hydra (Note: This is bypassable if you DIRBUST to find /Log/log.php)
+29:34 - Finally got Hydra to return the password!
+32:20 - Log Poisoning + LFI = Remote Code Execution
+37:30 - Return of Reverse Shell
+41:30 - Why you should check if you're a 32-bit process on a 64-bit machine
+### Start of Failing attempting to do a RunAs... Lol.
+48:35 - Attempting to use b33f/FuzzySecurity Invoke-RunAs
+56:00 - Mistake with Invoke-RunAs is probably pointing it to the wrong port. D:
+01:03:40 - ARGH!  Lets try to use this account via Empire
+01:11:00 - Bring out the big guns, it's Metasploit Time!
+01:18:10 - Alright, lets poke a hole in the firewall and connect over SMB!
+01:21:17 - Failed to PSExec in MSF
+### End of Failing!
+01:21:40 - Found Impacket-PSExec!  And it works!
+### Box Done
+01:23:45 - Lets go hunt for creds!
+01:35:23 - Cracking Salted Hashes with Hashcat (Sha265.Salt)
+

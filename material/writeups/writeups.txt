@@ -1,0 +1,16 @@
+Collection of HackTheBox Writeups by IppSec
+===========================================
+HackTheBox - Arctic-e9lVyFH7-4o.mkv	https://www.youtube.com/watch?v=e9lVyFH7-4o
+HackTheBox - Bart-Cz6vQvGGiuc.mkv 	https://www.youtube.com/watch?v=Cz6vQvGGiuc&t=839s
+HackTheBox - Bastard-lP-E5vmZNC0.mkv	https://www.youtube.com/watch?v=lP-E5vmZNC0
+HackTheBox - Beep-XJmBpOd__N8.mkv	https://www.youtube.com/watch?v=XJmBpOd__N8&t=2s
+HackTheBox - Blue-YRsfX6DW10E.mkv	https://www.youtube.com/watch?v=YRsfX6DW10E
+HackTheBox - Bounty-7ur4om1K98Y.mkv	https://www.youtube.com/watch?v=7ur4om1K98Y&t=1878s
+HackTheBox - Devel-2LNyAbroZUk.mkv	https://www.youtube.com/watch?v=2LNyAbroZUk
+HackTheBox - Granny and Grandpa-ZfPVGJGkORQ.mkv	https://www.youtube.com/watch?v=ZfPVGJGkORQ
+HackTheBox - Minion-IbVmpr6IFQU.mkv	https://www.youtube.com/watch?v=IbVmpr6IFQU&t=5069s
+HackTheBox - Optimum-kWTnVBIpNsE.mkv	https://www.youtube.com/watch?v=kWTnVBIpNsE&t=1196s
+
+HackTheBox - Jeves https://www.youtube.com/watch?v=x26tPoARtSA
+	https://www.youtube.com/results?search_query=HTB+Ask+Jeeves+Walk+Through
+

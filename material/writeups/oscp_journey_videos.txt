@@ -1,0 +1,6 @@
+OSCP Journey Part 3.0 (Hacking Windows XP_OSCP Friendly MS08-067)-qD-4S3KDJoQ.mp4	https://www.youtube.com/watch?v=qD-4S3KDJoQ
+
+OSCP Journey Part 4.0 (EternalBlue OSCP Friendly)-p9OnxS1oDc0.mp4	https://www.youtube.com/watch?v=p9OnxS1oDc0&t=1s
+
+OSCP Journey Part 9.0 (Windows Post Exploitation Enabling RDP Manually)-ZTynRqgncyc.mp4		https://www.youtube.com/watch?v=ZTynRqgncyc&t=1s
+
