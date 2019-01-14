@@ -1,0 +1,9 @@
+pwdump2 https://www.openwall.com/passwords/windows-pwdump
+pwdump7	http://www.tarasco.org/security/pwdump_7/
+wce
+windows-privsec-check2	https://github.com/pentestmonkey/windows-privesc-check
+fgdump.exe
+nc.exe
+samdump2
+wce_v1_42beta_x32.exe
+

@@ -1,0 +1,6 @@
+Windows-Exploit-Suggester	https://github.com/GDSSecurity/Windows-Exploit-Suggester
+oscp_journey.txt
+PowerSploit	https://github.com/PowerShellMafia/PowerSploit
+SamDump2	https://sourceforge.net/projects/ophcrack/files/samdump2/3.0.0/
+https://docs.microsoft.com/en-us/sysinternals/downloads/accesschk
+

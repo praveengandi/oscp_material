@@ -1,0 +1,44 @@
+This is a collection of CTFs i played to train for the OSCP exam.
+~gamma
+<gamma@thc.org>
+
+CTFs on vulnhub.com 
+==================
+
+Freshly		https://www.vulnhub.com/entry/tophatsec-freshly,118/
+LordOfTheRoot	https://www.vulnhub.com/entry/lord-of-the-root-101,129/
+Quaoar		https://www.vulnhub.com/entry/hackfest2016-quaoar,180/
+bobby		https://www.vulnhub.com/entry/bobby-1,42/
+brainpan	
+fristi_leaks
+imf
+kioptrix1.2
+kioptrix1.3
+kioptrix2014
+mrrobot
+nebula
+pwnos
+secos1
+sedna
+sickos
+sleepy
+stapler
+tr0ll
+vulnix
+wintermute
+zorz
+
+hackthebox.eu
+============
+access   
+active   
+bounty   
+dropzone 
+jerry    
+secnotes
+
+OverTheWire.org
+===============
+Natas	http://overthewire.org/wargames/natas/natas1.html
+HES2010 http://overthewire.org/wargames/hes2010/
+

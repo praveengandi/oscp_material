@@ -1,0 +1,9 @@
+
+* test which files are allowed to be uploaded
+
+davtest -u http://foobar
+
+
+* Credential File
+webdav.htpasswd
+
