@@ -4,7 +4,7 @@ Most of the stuff is very unsorted, however i would like to share with the fello
 
 Here a brief description of the files and directories:\
 \
-oscp_notes.txt<tab>		- the notes i kept during lab and exam\
+oscp_notes.txt<tab><tab><tab>- the notes i kept during lab and exam\
 ctf_machines_for_training.txt		- CTF machines i played to prepare for the exam\
 exploits/				- a collection of exploits i used during lab/exam\
 material/windows_privesc/		- docs explaining different methods for windows priviledge escalation\
