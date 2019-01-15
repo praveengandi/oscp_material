@@ -1,5 +1,5 @@
 # GAMMAs OSCP Training Material
-This is a collection of material i gathred during my preparation for the Offensive Security Certified Professional (OSCP) exam.\
+This is a collection of material i gathred during my preparation for the Offensive Security Certified Professional (OSCP) exam.
 
 Most of the stuff is very unsorted, however i would like to share with the fellow hackers studied for the exam as i also did benefit from various other Cheatsets and different sources.
 
