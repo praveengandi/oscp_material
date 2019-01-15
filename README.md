@@ -12,13 +12,13 @@ material/windows_privesc/		- docs explaining different methods for windows privi
 material/writeups/			- writeups of different CTF boxes that explain useful exploitation methods/pwning useful for the lab/exam\
 notes/					- some notes i kept for pwning different software\
 tools/					- host enumeration scripts i wrote\
-reverse_shells/				- different reverse shells in asp/php/jsp/... language\
-passwordlists/				- my favourite password lists for password bruteforce\
-windows/					- tools for windows enumeration/password dumping\
+reverse_shells/				- different reverse shells in asp/php/jsp/... language
+passwordlists/				- my favourite password lists for password bruteforce
+windows/					- tools for windows enumeration/password dumping
 
 
-Have fun with the OSCP!\
-... and remember, TRY HARDER!!  (they really mean it!)\
-\
-~gamma <gamma@thc.org>\
+Have fun with the OSCP!
+... and remember, TRY HARDER!!  (they really mean it!)
+
+~gamma <gamma@thc.org>
 
